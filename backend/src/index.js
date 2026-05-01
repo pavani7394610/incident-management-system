@@ -1,55 +1,52 @@
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
+const express  = require('express');
+const cors     = require('cors');
+const helmet   = require('helmet');
 
-// Import database connectors
-const pool = require('./config/postgres');
-const connectMongo = require('./config/mongodb');
-const redisClient = require('./config/redis');
+const connectMongo       = require('./config/mongodb');
+const { initDB }         = require('./models/workItem');
+const signalRoutes       = require('./routes/signals');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3001;
 
-// --- Middleware (runs on every request) ---
-app.use(helmet());          // Security headers
-app.use(cors());            // Allow React frontend to call us
-app.use(express.json());    // Parse JSON request bodies
+// --- Middleware ---
+app.use(helmet());
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));  // Accept large signal payloads
 
-// --- Health endpoint (required by assignment) ---
+// --- Routes ---
+app.use('/api/signals', signalRoutes);
+
+// --- Health endpoint ---
 app.get('/health', (req, res) => {
+  const signalQueue = require('./workers/signalQueue');
   res.json({
-    status: 'ok',
+    status:    'ok',
     timestamp: new Date().toISOString(),
-    services: {
-      postgres: 'connected',
-      mongodb: 'connected',
-      redis: 'connected',
-    }
+    queue:     signalQueue.getStats(),
   });
 });
 
-// --- Placeholder routes (we'll fill these in Phase 3 & 4) ---
 app.get('/', (req, res) => {
-  res.json({ message: 'IMS Backend is running 🚀' });
+  res.json({ message: 'IMS Backend running 🚀' });
 });
 
-// --- Start server ---
+// --- Start everything ---
 const startServer = async () => {
-  // Connect to all databases first
-  await connectMongo();
+  await connectMongo();  // Connect MongoDB
+  await initDB();        // Create PostgreSQL tables
 
   app.listen(PORT, () => {
     console.log(`\n🚀 IMS Backend running on http://localhost:${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health\n`);
+    console.log(`📊 Health: http://localhost:${PORT}/health\n`);
   });
 
-  // Throughput metrics — prints every 5 seconds (required by assignment)
+  // Throughput metrics every 5 seconds
   let signalCount = 0;
   global.incrementSignalCount = () => signalCount++;
-
   setInterval(() => {
-    console.log(`📈 Throughput: ${signalCount} signals in last 5 seconds`);
+    console.log(`📈 Throughput: ${signalCount} signals/sec (last 5s)`);
     signalCount = 0;
   }, 5000);
 };
