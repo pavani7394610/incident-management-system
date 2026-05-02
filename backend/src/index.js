@@ -6,6 +6,7 @@ const helmet   = require('helmet');
 const connectMongo       = require('./config/mongodb');
 const { initDB }         = require('./models/workItem');
 const signalRoutes       = require('./routes/signals');
+const workItemRoutes = require('./routes/workItems');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -17,6 +18,7 @@ app.use(express.json({ limit: '10mb' }));  // Accept large signal payloads
 
 // --- Routes ---
 app.use('/api/signals', signalRoutes);
+app.use('/api/workitems', workItemRoutes);
 
 // --- Health endpoint ---
 app.get('/health', (req, res) => {
