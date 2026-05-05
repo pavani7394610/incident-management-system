@@ -1,70 +1,161 @@
-# Getting Started with Create React App
+# Incident Management System (IMS)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project is a simplified Incident Management System built to simulate how real-world systems handle failures across different services.
 
-## Available Scripts
+It captures incoming error signals, groups them into incidents, and manages them through a proper lifecycle. Each incident must go through a Root Cause Analysis (RCA) before it can be closed.
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## What the system does
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Accepts failure signals from different components  
+- Groups multiple signals into a single incident  
+- Automatically assigns priority (P0, P1, P2)  
+- Tracks incident status from OPEN to CLOSED  
+- Requires RCA before closing any incident  
+- Shows everything in a live dashboard  
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## Architecture 
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Frontend (React - port 3000)  
+↓  
+Backend (Node.js + Express - port 3001)  
+↓  
+- In-memory queue for signals  
+- Debounce logic for grouping  
+- State machine for lifecycle  
+- Priority strategy logic  
 
-### `npm run build`
+Databases:
+- PostgreSQL → incidents and RCA  
+- MongoDB → raw signals  
+- Redis → cached dashboard data  
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Tech Stack
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- Frontend: React  
+- Backend: Node.js, Express  
+- Database: PostgreSQL  
+- Signal storage: MongoDB  
+- Cache: Redis  
+- Setup: Docker  
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## How to run the project
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 1. Clone the repo
+https://github.com/pavani7394610/incident-management-system.git
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+---
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 2. Start databases
+docker-compose up -d
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### 3. Start backend
+cd backend
+npm install
+npm run dev
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Backend will run on: http://localhost:3001
 
-### Code Splitting
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 4. Start frontend
+Open a new terminal: http://localhost:3000
 
-### Analyzing the Bundle Size
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### 5. Run failure simulation
+cd backend
+npm run simulate
 
-### Making a Progressive Web App
+This will simulate a real failure starting from database and affecting other services.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+---
 
-### Advanced Configuration
+## API endpoints (basic)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Signals  
+- POST /api/signals  
 
-### Deployment
+Work Items  
+- GET /api/workitems  
+- GET /api/workitems/:id  
+- PATCH /api/workitems/:id/status  
+- POST /api/workitems/:id/rca  
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Health  
+- GET /health  
 
-### `npm run build` fails to minify
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## How it handles high load
+
+Instead of sending every signal directly to the database:
+
+- Signals go into an in-memory queue  
+- API responds immediately (202 Accepted)  
+- Background worker processes signals in batches  
+
+This prevents the system from slowing down or crashing under heavy traffic.
+
+---
+
+## Key design decisions
+
+### 1. Debouncing
+Multiple signals from the same component within a short time are grouped into one incident.  
+This avoids too many duplicate incidents.
+
+---
+
+### 2. Priority logic
+- Database failures → P0  
+- API failures → P1  
+- Cache / Queue → P2  
+
+---
+
+### 3. Incident lifecycle
+OPEN → INVESTIGATING → RESOLVED → CLOSED  
+
+An incident cannot be closed without RCA.
+
+---
+
+## Testing
+cd backend
+npm test
+
+---
+
+## Project structure
+incident-management-system/
+├── backend/
+│ ├── scripts/
+│ └── src/
+├── frontend/
+│ ├── components/
+│ └── pages/
+
+
+---
+
+## Environment variables
+PORT=3001
+PG_HOST=localhost
+MONGO_URI=your_mongo_uri
+REDIS_HOST=localhost
+
+---
+
+## Final note
+
+This project focuses on how systems behave during failures  handling large volumes of signals, grouping them properly, and managing incidents in a structured way.
